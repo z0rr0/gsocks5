@@ -1,0 +1,86 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"io"
+	"log"
+	"net"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/armon/go-socks5"
+
+	"github.com/z0rr0/gsocks5/auth"
+	"github.com/z0rr0/gsocks5/dns"
+	"github.com/z0rr0/gsocks5/server"
+)
+
+const name = "GSocks5"
+
+var (
+	// Tag is the git tag of the build.
+	Tag string
+
+	logInfo  = log.New(os.Stdout, name+" [INFO]: ", log.LstdFlags)
+	logDebug = log.New(io.Discard, name+" [DEBUG]: ", log.Ldate|log.Ltime|log.Lshortfile)
+)
+
+func main() {
+	var (
+		authFile  string
+		customDNS string
+		host      string
+		version   bool
+		port      uint
+		timeout   uint
+		debug     bool
+	)
+	flag.StringVar(&authFile, "auth", "", "authentication file")
+	flag.StringVar(&customDNS, "dns", "", "custom DNS server")
+	flag.BoolVar(&version, "version", false, "show version")
+	flag.StringVar(&host, "host", "", "server host")
+	flag.UintVar(&port, "port", 1080, "port to listen on")
+	flag.UintVar(&timeout, "timeout", 5, "context timeout (seconds)")
+	flag.BoolVar(&debug, "debug", false, "debug mode")
+
+	flag.Parse()
+	if version {
+		server.ShowVersion(name, Tag)
+		return
+	}
+	if debug {
+		logDebug.SetOutput(os.Stdout)
+	}
+
+	credentials, err := auth.New(authFile, logInfo)
+	if err != nil {
+		logInfo.Fatal(err)
+	}
+
+	timeoutDNS := time.Duration(timeout) * time.Second
+	cfg := &socks5.Config{
+		Logger:      logInfo,
+		Credentials: credentials,
+		Resolver:    dns.New(customDNS, timeoutDNS, logInfo, logDebug),
+	}
+
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, os.Interrupt, os.Signal(syscall.SIGTERM), os.Signal(syscall.SIGQUIT))
+	defer close(sigint)
+
+	s, err := server.New(cfg, logInfo, logDebug)
+	if err != nil {
+		logInfo.Fatal(err)
+	}
+
+	addr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
+	logInfo.Printf("starting server on %s, debug=%v", addr, debug)
+
+	if err = s.ListenAndServe(addr, sigint); err != nil {
+		logInfo.Printf("server listen error: %s", err)
+	}
+	logInfo.Println("server stopped")
+}
