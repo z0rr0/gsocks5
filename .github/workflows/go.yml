@@ -18,6 +18,18 @@ jobs:
         with:
           go-version: 1.19
 
+      - name: Setup Environment
+        run: |
+          echo "::set-env name=GOPATH::$(go env GOPATH)"
+          echo "::add-path::$(go env GOPATH)/bin"
+        shell: bash
+
+      - name: Checkout
+        uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+          path: src/github.com/${{ github.repository }}
+
       - name: GoLint
         run: |
           go env
