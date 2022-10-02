@@ -1,5 +1,6 @@
 # GSocks5
 
+![Go](https://github.com/z0rr0/gsocks5/workflows/Go/badge.svg)
 ![Version](https://img.shields.io/github/tag/z0rr0/gsocks5.svg)
 ![License](https://img.shields.io/github/license/z0rr0/gsocks5.svg)
 
