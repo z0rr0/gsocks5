@@ -18,6 +18,11 @@ jobs:
         with:
           go-version: 1.19
 
+      - name: GoLint
+        run: |
+          go env
+          go install golang.org/x/lint/golint
+
       - name: Build
         run: make build
 
