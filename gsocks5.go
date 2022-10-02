@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -25,7 +26,7 @@ var (
 	Tag string
 
 	logInfo  = log.New(os.Stdout, name+" [INFO]: ", log.LstdFlags)
-	logDebug = log.New(io.Discard, name+" [DEBUG]: ", log.Ldate|log.Ltime|log.Lshortfile)
+	logDebug = log.New(io.Discard, name+" [DEBUG]: ", log.LstdFlags|log.Lshortfile)
 )
 
 func main() {
@@ -36,22 +37,27 @@ func main() {
 		version   bool
 		port      uint
 		timeout   uint
-		debug     bool
+		debugMode bool
 	)
+	defer func() {
+		if r := recover(); r != nil {
+			logInfo.Printf("abnormal termination [%v]: %v\n%v", Tag, r, string(debug.Stack()))
+		}
+	}()
 	flag.StringVar(&authFile, "auth", "", "authentication file")
 	flag.StringVar(&customDNS, "dns", "", "custom DNS server")
 	flag.BoolVar(&version, "version", false, "show version")
 	flag.StringVar(&host, "host", "", "server host")
 	flag.UintVar(&port, "port", 1080, "port to listen on")
 	flag.UintVar(&timeout, "timeout", 5, "context timeout (seconds)")
-	flag.BoolVar(&debug, "debug", false, "debug mode")
+	flag.BoolVar(&debugMode, "debug", false, "debug mode")
 
 	flag.Parse()
 	if version {
-		server.ShowVersion(name, Tag)
+		fmt.Println(server.Version(name, Tag))
 		return
 	}
-	if debug {
+	if debugMode {
 		logDebug.SetOutput(os.Stdout)
 	}
 
@@ -61,10 +67,15 @@ func main() {
 	}
 
 	timeoutDNS := time.Duration(timeout) * time.Second
+	resolver, err := dns.New(customDNS, timeoutDNS, logInfo, logDebug)
+	if err != nil {
+		logInfo.Fatal(err)
+	}
+
 	cfg := &socks5.Config{
 		Logger:      logInfo,
 		Credentials: credentials,
-		Resolver:    dns.New(customDNS, timeoutDNS, logInfo, logDebug),
+		Resolver:    resolver,
 	}
 
 	sigint := make(chan os.Signal, 1)
@@ -77,7 +88,7 @@ func main() {
 	}
 
 	addr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
-	logInfo.Printf("starting server on %s, debug=%v", addr, debug)
+	logInfo.Printf("starting server on %s, debugMode=%v", addr, debugMode)
 
 	if err = s.ListenAndServe(addr, sigint); err != nil {
 		logInfo.Printf("server listen error: %s", err)

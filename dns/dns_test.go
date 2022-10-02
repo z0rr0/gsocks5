@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	logger  = log.New(io.Discard, "test", log.LstdFlags)
+	logger  = log.New(io.Discard, "test", log.LstdFlags|log.Lshortfile)
 	timeout = 5 * time.Second
 )
 
@@ -24,12 +24,20 @@ func TestNew(t *testing.T) {
 	}{
 		{name: "default"},
 		{name: "google", dnsHost: "8.8.8.8"},
+		{name: "badDNS", dnsHost: "bad", err: true},
 		{name: "badDefault", host: "bad.bad.github.bad", err: true},
 		{name: "badCustom", host: "bad.bad.github.bad", dnsHost: "8.8.8.8", err: true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(tt *testing.T) {
-			nr := New(c.dnsHost, timeout, logger, logger)
+			nr, err := New(c.dnsHost, timeout, logger, logger)
+			if err != nil {
+				if !c.err {
+					tt.Errorf("unexpected error: %v", err)
+				}
+				return
+			}
+
 			if len(c.dnsHost) == 0 {
 				// default nameResolver
 				if _, ok := nr.(socks5.DNSResolver); !ok {

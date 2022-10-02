@@ -2,12 +2,16 @@ package dns
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net"
 	"time"
 
 	"github.com/armon/go-socks5"
 )
+
+// HostError is returned when the DNS host is invalid.
+var HostError = errors.New("DNS host is not an IP address")
 
 // nameResolver is a nameResolver that uses a custom DNS server.
 type nameResolver struct {
@@ -27,11 +31,15 @@ func (nr *nameResolver) Resolve(ctx context.Context, name string) (context.Conte
 }
 
 // New returns a new name nameResolver.
-func New(dnsHost string, timeout time.Duration, loggerInfo, loggerDebug *log.Logger) socks5.NameResolver {
+func New(dnsHost string, timeout time.Duration, loggerInfo, loggerDebug *log.Logger) (socks5.NameResolver, error) {
 	const port = "53"
 	if dnsHost == "" {
 		loggerInfo.Printf("using default DNS nameResolver")
-		return socks5.DNSResolver{}
+		return socks5.DNSResolver{}, nil
+	}
+
+	if ip := net.ParseIP(dnsHost); ip == nil {
+		return nil, HostError
 	}
 
 	address := net.JoinHostPort(dnsHost, port)
@@ -45,5 +53,5 @@ func New(dnsHost string, timeout time.Duration, loggerInfo, loggerDebug *log.Log
 			return d.DialContext(ctx, network, address)
 		},
 	}
-	return &nameResolver{r: resolver}
+	return &nameResolver{r: resolver}, nil
 }

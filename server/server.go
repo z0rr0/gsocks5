@@ -42,8 +42,9 @@ func (s *Server) listen(listener net.Listener, done chan<- struct{}) <-chan net.
 			}
 			connections <- conn
 		}
-		s.logDebug.Printf("listener stopped")
+		close(connections)
 		close(done)
+		s.logDebug.Printf("listener stopped")
 	}()
 	return connections
 }
@@ -61,6 +62,7 @@ func (s *Server) ListenAndServe(addr string, sigint <-chan os.Signal) error {
 
 	done := make(chan struct{})
 	connections := s.listen(listener, done)
+	s.logDebug.Printf("listener started on %s", addr)
 	for {
 		select {
 		case signal := <-sigint:
@@ -85,8 +87,8 @@ func (s *Server) handleConnection(conn net.Conn) {
 	}
 }
 
-// ShowVersion prints the version of the program.
-func ShowVersion(name, tag string) {
+// Version prints the version of the program.
+func Version(name, tag string) string {
 	var keys = map[string]string{
 		"vcs":          "",
 		"vcs.revision": "",
@@ -99,5 +101,8 @@ func ShowVersion(name, tag string) {
 			}
 		}
 	}
-	fmt.Printf("%s %s\n%s:%s\nbuild: %s\n", name, tag, keys["vcs"], keys["vcs.revision"], keys["vcs.time"])
+	return fmt.Sprintf(
+		"%s %s\n%s:%s\nbuild: %s",
+		name, tag, keys["vcs"], keys["vcs.revision"], keys["vcs.time"],
+	)
 }
