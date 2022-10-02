@@ -40,8 +40,8 @@ func New(dnsHost string, timeout time.Duration, loggerInfo, loggerDebug *log.Log
 	resolver := &net.Resolver{
 		PreferGo: true,
 		Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
-			loggerDebug.Printf("dialing DNS server %s, network %s", address, network)
-			d := net.Dialer{Timeout: time.Second * 5}
+			loggerDebug.Printf("dialing DNS server %s, network %s, timeout %v", address, network, timeout)
+			d := net.Dialer{Timeout: timeout}
 			return d.DialContext(ctx, network, address)
 		},
 	}

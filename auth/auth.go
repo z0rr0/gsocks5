@@ -42,8 +42,11 @@ func parse(fileName string) (map[string]string, error) {
 
 	for scanner.Scan() {
 		values := strings.SplitN(scanner.Text(), " ", 2)
-		if len(values) == 2 && values[0] != "" && values[1] != "" {
-			result[values[0]] = values[1]
+		if len(values) == 2 {
+			user, pass := strings.Trim(values[0], " "), strings.Trim(values[1], " ")
+			if user != "" && pass != "" {
+				result[user] = pass
+			}
 		}
 	}
 	if err = scanner.Err(); err != nil {

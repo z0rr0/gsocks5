@@ -3,8 +3,10 @@
 ![Version](https://img.shields.io/github/tag/z0rr0/gsocks5.svg)
 ![License](https://img.shields.io/github/license/z0rr0/gsocks5.svg)
 
-It's a simple socks5 server based on [go-socks5](https://github.com/armon/go-socks5) 
+It's a simple socks5 server based on [go-socks5](https://github.com/armon/go-socks5)
 with authentication and custom dns resolving.
+
+It also uses [github.com/serjs/socks5-server](https://github.com/serjs/socks5-server) ideas.
 
 ## Build
 
@@ -23,17 +25,17 @@ Parameters
 ```
 Usage of ./gsocks5:
   -auth string
-        host to listen on (default "127.0.0.1")
-  -password string
-        password for basic auth
+        authentication file
+  -debug
+        debug mode
+  -dns string
+        custom DNS server
+  -host string
+        server host
   -port uint
-        port to listen on (default 8080)
-  -root string
-        root directory to serve (default ".")
-  -timeout duration
-        timeout for requests (default 5s)
-  -user string
-        username for basic auth
+        port to listen on (default 1080)
+  -timeout uint
+        context timeout (seconds) (default 5)
   -version
         show version
 ```
