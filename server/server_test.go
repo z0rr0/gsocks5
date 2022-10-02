@@ -15,10 +15,7 @@ import (
 	"golang.org/x/net/proxy"
 )
 
-var (
-	logger  = log.New(io.Discard, "test", log.LstdFlags|log.Lshortfile)
-	timeout = 5 * time.Second
-)
+var logger = log.New(io.Discard, "test", log.LstdFlags|log.Lshortfile)
 
 func run(t *testing.T, s *Server, i, port int, isErr bool) (string, chan os.Signal) {
 	sigint := make(chan os.Signal)

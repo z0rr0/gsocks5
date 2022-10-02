@@ -10,8 +10,8 @@ import (
 	"github.com/armon/go-socks5"
 )
 
-// HostError is returned when the DNS host is invalid.
-var HostError = errors.New("DNS host is not an IP address")
+// ErrHostIP is returned when the DNS host is invalid.
+var ErrHostIP = errors.New("DNS host is not an IP address")
 
 // nameResolver is a nameResolver that uses a custom DNS server.
 type nameResolver struct {
@@ -39,7 +39,7 @@ func New(dnsHost string, timeout time.Duration, loggerInfo, loggerDebug *log.Log
 	}
 
 	if ip := net.ParseIP(dnsHost); ip == nil {
-		return nil, HostError
+		return nil, ErrHostIP
 	}
 
 	address := net.JoinHostPort(dnsHost, port)
