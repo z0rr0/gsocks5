@@ -7,7 +7,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-X main.Tag=`git tag --sort=version:refname | tail -1`" -o ./gsocks5
 
 FROM scratch
-MAINTAINER Alexander Zaytsev "me@axv.email"
+MAINTAINER Alexander Zaitsev "me@axv.email"
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /go/src/github.com/z0rr0/gsocks5/gsocks5 /bin/

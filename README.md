@@ -67,13 +67,13 @@ Docker:
 docker run -d --name gsocks5 -p 1080:1080 z0rr0/gsocks5
 ```
 
-With authentication:
+With authentication (multiuser support):
 
 ```sh
 # for example there is a directory ".local" with users passwords
 # > cat .local/users.txt
-# user1 pass1
-# user2 pass2
+# user1 password1
+# user2 password2
 
 docker run -d --name gsocks5 -p 1080:1080 -v $PWD/.local:/data/auth z0rr0/gsocks5 -auth /data/auth/users.txt
 ```
