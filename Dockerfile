@@ -1,6 +1,6 @@
-ARG GOLANG_VERSION="1.19.2"
+ARG GOLANG_VERSION="1.20"
 
-FROM golang:$GOLANG_VERSION-alpine as builder
+FROM golang:${GOLANG_VERSION}-alpine as builder
 RUN apk --no-cache add tzdata git
 WORKDIR /go/src/github.com/z0rr0/gsocks5
 COPY . .
