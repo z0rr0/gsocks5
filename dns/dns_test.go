@@ -12,7 +12,7 @@ import (
 
 var (
 	logger  = log.New(io.Discard, "test", log.LstdFlags|log.Lshortfile)
-	timeout = 5 * time.Second
+	timeout = 2 * time.Second
 )
 
 func TestNew(t *testing.T) {
@@ -23,7 +23,7 @@ func TestNew(t *testing.T) {
 		err     bool
 	}{
 		{name: "default"},
-		{name: "google", dnsHost: "8.8.8.8"},
+		{name: "google", dnsHost: "8.8.8.8", host: "google.com"},
 		{name: "badDNS", dnsHost: "bad", err: true},
 		{name: "badDefault", host: "bad.bad.github.bad", err: true},
 		{name: "badCustom", host: "bad.bad.github.bad", dnsHost: "8.8.8.8", err: true},
