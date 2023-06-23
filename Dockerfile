@@ -1,10 +1,11 @@
 ARG GOLANG_VERSION="1.20.5"
 
 FROM golang:${GOLANG_VERSION}-alpine as builder
+ARG LDFLAGS
 RUN apk --no-cache add tzdata git
 WORKDIR /go/src/github.com/z0rr0/gsocks5
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-X main.Tag=`git tag --sort=version:refname | tail -1`" -o ./gsocks5
+RUN echo "LDFLAGS = $LDFLAGS"
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "$LDFLAGS" -o ./gsocks5
 
 FROM scratch
