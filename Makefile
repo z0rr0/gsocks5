@@ -1,8 +1,10 @@
 TARGET=gsocks5
 DOCKER_TAG=z0rr0/gsocks5
+TAG=$(shell git tag | sort -V | tail -1)
+LDFLAGS=-X main.Tag=$(TAG)
 
 build:
-	go build -ldflags "-X main.Tag=`git tag --sort=version:refname | tail -1`" -o $(PWD)/$(TARGET)
+	go build -ldflags "$(LDFLAGS)" -o $(PWD)/$(TARGET)
 
 fmt:
 	gofmt -d .
@@ -20,7 +22,7 @@ test: check_fmt
 	go test -race -cover $(PWD)/...
 
 docker:
-	docker build -t $(DOCKER_TAG) .
+	docker build --build-arg LDFLAGS="$(LDFLAGS)" -t $(DOCKER_TAG) .
 
 clean:
 	rm -f $(PWD)/$(TARGET)
