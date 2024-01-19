@@ -22,14 +22,14 @@ type Server struct {
 
 // Params is a start parameters for the server.
 type Params struct {
-	Addr       string
-	Concurrent int
-	Done       chan struct{}
-	Sigint     chan os.Signal
-	Timeout    time.Duration
-	setReady   sync.Once
-	wg         sync.WaitGroup
-	listener   net.Listener
+	Addr        string
+	Connections int
+	Done        chan struct{}
+	Sigint      chan os.Signal
+	Timeout     time.Duration
+	setReady    sync.Once
+	wg          sync.WaitGroup
+	listener    net.Listener
 }
 
 // Ready closes Done channel if it is not closed yet.
@@ -79,11 +79,12 @@ func (s *Server) accept(listener net.Listener, p *Params) (net.Conn, error) {
 	}
 
 	if p.Timeout > 0 {
-		if err = conn.SetDeadline(time.Now().Add(p.Timeout)); err != nil {
+		if err = conn.SetReadDeadline(time.Now().Add(p.Timeout)); err != nil {
 			return nil, fmt.Errorf("failed to set deadline for connection: %w", err)
 		}
 	}
 
+	s.logDebug.Printf("accepted connection from %s with timeout %v", conn.RemoteAddr().String(), p.Timeout)
 	return conn, nil
 }
 
@@ -121,7 +122,7 @@ func (s *Server) listen(ctx context.Context, p *Params, done chan<- struct{}) (<
 
 // startWorkers starts workers to handle incoming connections.
 func (s *Server) startWorkers(p *Params, connections <-chan net.Conn) {
-	for i := 0; i < p.Concurrent; i++ {
+	for i := 0; i < p.Connections; i++ {
 		go func() {
 			var (
 				client string

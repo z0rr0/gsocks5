@@ -15,18 +15,20 @@ Parameters:
 Usage of ./gsocks5:
   -auth value
         authentication file
-  -concurrent value
+  -connections value
         number of concurrent connections in range [1, 10000] (default 100)
   -debug
         debug mode
   -dns string
         custom DNS server
+  -dt duration
+        dns connection timeout (default 5s)
   -host string
         server host
   -port value
         TCP port number to listen on in range [1, 65535] (default 1080)
-  -timeout duration
-        context timeout (default 5s)
+  -t duration
+        connection timeout (default 3m0s)
   -version
         show version
 ```

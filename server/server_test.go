@@ -16,11 +16,11 @@ var logger = log.New(os.Stdout, "[test] ", log.LstdFlags|log.Lshortfile)
 
 func run(t *testing.T, s *Server, i, port int, isErr bool) (string, chan os.Signal) {
 	params := &Params{
-		Addr:       net.JoinHostPort("localhost", strconv.Itoa(port)),
-		Concurrent: 1,
-		Done:       make(chan struct{}),
-		Sigint:     make(chan os.Signal),
-		Timeout:    time.Second,
+		Addr:        net.JoinHostPort("localhost", strconv.Itoa(port)),
+		Connections: 1,
+		Done:        make(chan struct{}),
+		Sigint:      make(chan os.Signal),
+		Timeout:     time.Second,
 	}
 
 	go func() {

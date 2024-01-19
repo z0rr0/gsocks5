@@ -39,14 +39,15 @@ var (
 
 func main() {
 	var (
-		authFile   string
-		customDNS  string
-		host       string
-		version    bool
-		debugMode  bool
-		concurrent        = 100
-		port       uint16 = 1080
-		timeoutDNS        = 5 * time.Second
+		authFile    string
+		customDNS   string
+		host        string
+		version     bool
+		debugMode   bool
+		connections        = 100
+		port        uint16 = 1080
+		timeout            = 3 * time.Minute
+		timeoutDNS         = 5 * time.Second
 	)
 	defer func() {
 		if r := recover(); r != nil {
@@ -57,12 +58,13 @@ func main() {
 	flag.StringVar(&customDNS, "dns", customDNS, "custom DNS server")
 	flag.BoolVar(&version, "version", false, "show version")
 	flag.StringVar(&host, "host", "", "server host")
-	flag.DurationVar(&timeoutDNS, "timeout", timeoutDNS, "context timeout")
+	flag.DurationVar(&timeout, "t", timeout, "connection timeout")
+	flag.DurationVar(&timeoutDNS, "dt", timeoutDNS, "dns connection timeout")
 	flag.BoolVar(&debugMode, "debug", false, "debug mode")
 	flag.Func("port", args.PortDescription(port), func(s string) error { return args.IsPort(s, &port) })
 	flag.Func("auth", "authentication file", func(s string) error { return args.IsFile(s, &authFile) })
-	flag.Func("concurrent", args.ConcurrentDescription(concurrent), func(s string) error {
-		return args.IsConcurrent(s, &concurrent)
+	flag.Func("connections", args.ConcurrentDescription(connections), func(s string) error {
+		return args.IsConcurrent(s, &connections)
 	})
 
 	flag.Parse()
@@ -104,11 +106,11 @@ func main() {
 	addr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
 	logInfo.Println(versionInfo)
 	logInfo.Printf(
-		"starting server on %q, dns=%q, timeout=%v, concurrent=%d, debug=%v, auth=%q\n",
-		addr, customDNS, timeoutDNS, concurrent, debugMode, authFile,
+		"starting server on %q, dns=%q, dns timeout=%v, cons timeout=%v, connections=%d, debug=%v, auth=%q\n",
+		addr, customDNS, timeoutDNS, timeout, connections, debugMode, authFile,
 	)
 
-	params := &server.Params{Addr: addr, Concurrent: concurrent, Sigint: sigint, Timeout: timeoutDNS}
+	params := &server.Params{Addr: addr, Connections: connections, Sigint: sigint, Timeout: timeout}
 	if err = s.ListenAndServe(params); err != nil {
 		logInfo.Printf("server listen error: %s", err)
 	}
