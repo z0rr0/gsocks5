@@ -71,6 +71,22 @@ func (s *Server) ListenAndServe(p *Params) error {
 	return s.waitClose(p, done)
 }
 
+// accept accepts a new connection.
+func (s *Server) accept(listener net.Listener, p *Params) (net.Conn, error) {
+	conn, err := listener.Accept()
+	if err != nil {
+		return nil, fmt.Errorf("failed to accept connection: %w", err)
+	}
+
+	if p.Timeout > 0 {
+		if err = conn.SetDeadline(time.Now().Add(p.Timeout)); err != nil {
+			return nil, fmt.Errorf("failed to set deadline for connection: %w", err)
+		}
+	}
+
+	return conn, nil
+}
+
 // listen starts goroutine to accept incoming connections and sends them to a returned channel.
 func (s *Server) listen(ctx context.Context, p *Params, done chan<- struct{}) (<-chan net.Conn, error) {
 	var lc net.ListenConfig
@@ -85,21 +101,13 @@ func (s *Server) listen(ctx context.Context, p *Params, done chan<- struct{}) (<
 
 	go func() {
 		for {
-			if conn, e := listener.Accept(); e != nil {
+			if conn, e := s.accept(listener, p); e != nil {
 				if errors.Is(e, net.ErrClosed) {
 					break
 				}
 				s.logInfo.Printf("failed to accept connection [%T]: %v", e, e)
 			} else {
-				if p.Timeout > 0 {
-					e = conn.SetDeadline(time.Now().Add(p.Timeout))
-				}
-
-				if e != nil {
-					s.logInfo.Printf("failed to set deadline for connection: %v", e)
-				} else {
-					connections <- conn
-				}
+				connections <- conn
 			}
 		}
 

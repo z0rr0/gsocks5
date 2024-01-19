@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/armon/go-socks5"
 	"golang.org/x/net/proxy"
@@ -19,6 +20,7 @@ func run(t *testing.T, s *Server, i, port int, isErr bool) (string, chan os.Sign
 		Concurrent: 1,
 		Done:       make(chan struct{}),
 		Sigint:     make(chan os.Signal),
+		Timeout:    time.Second,
 	}
 
 	go func() {
