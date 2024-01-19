@@ -108,7 +108,7 @@ func main() {
 		addr, customDNS, timeoutDNS, concurrent, debugMode, authFile,
 	)
 
-	params := &server.Params{Addr: addr, Concurrent: concurrent, Sigint: sigint}
+	params := &server.Params{Addr: addr, Concurrent: concurrent, Sigint: sigint, Timeout: timeoutDNS}
 	if err = s.ListenAndServe(params); err != nil {
 		logInfo.Printf("server listen error: %s", err)
 	}

@@ -26,6 +26,7 @@ type Params struct {
 	Concurrent int
 	Done       chan struct{}
 	Sigint     chan os.Signal
+	Timeout    time.Duration
 	setReady   sync.Once
 	wg         sync.WaitGroup
 	listener   net.Listener
@@ -90,7 +91,15 @@ func (s *Server) listen(ctx context.Context, p *Params, done chan<- struct{}) (<
 				}
 				s.logInfo.Printf("failed to accept connection [%T]: %v", e, e)
 			} else {
-				connections <- conn
+				if p.Timeout > 0 {
+					e = conn.SetDeadline(time.Now().Add(p.Timeout))
+				}
+
+				if e != nil {
+					s.logInfo.Printf("failed to set deadline for connection: %v", e)
+				} else {
+					connections <- conn
+				}
 			}
 		}
 
