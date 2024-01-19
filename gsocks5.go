@@ -70,7 +70,6 @@ func main() {
 	versionInfo := fmt.Sprintf("%v: %v %v %v %v", name, Version, Revision, GoVersion, BuildDate)
 	if version {
 		fmt.Println(versionInfo)
-		flag.PrintDefaults()
 		return
 	}
 	if debugMode {
@@ -103,6 +102,7 @@ func main() {
 	}
 
 	addr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
+	logInfo.Println(versionInfo)
 	logInfo.Printf(
 		"starting server on %q, dns=%q, timeout=%v, concurrent=%d, debug=%v, auth=%q\n",
 		addr, customDNS, timeoutDNS, concurrent, debugMode, authFile,
