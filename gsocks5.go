@@ -8,9 +8,10 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"runtime/debug"
+	"runtime"
 	"syscall"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/armon/go-socks5"
 
@@ -22,8 +23,14 @@ import (
 const name = "GSocks5"
 
 var (
-	// Tag is the git tag of the build.
-	Tag string
+	// Version is git version
+	Version = ""
+	// Revision is revision number
+	Revision = ""
+	// BuildDate is build date
+	BuildDate = ""
+	// GoVersion is runtime Go language version
+	GoVersion = runtime.Version()
 
 	logInfo  = log.New(os.Stdout, name+" [INFO]: ", log.LstdFlags)
 	logDebug = log.New(io.Discard, name+" [DEBUG]: ", log.LstdFlags|log.Lshortfile)
@@ -41,7 +48,7 @@ func main() {
 	)
 	defer func() {
 		if r := recover(); r != nil {
-			logInfo.Printf("abnormal termination [%v]: %v\n%v", Tag, r, string(debug.Stack()))
+			logInfo.Printf("abnormal termination [%v]: %v\n", Version, r)
 		}
 	}()
 	flag.StringVar(&authFile, "auth", "", "authentication file")
@@ -53,8 +60,11 @@ func main() {
 	flag.BoolVar(&debugMode, "debug", false, "debug mode")
 
 	flag.Parse()
+
+	versionInfo := fmt.Sprintf("%v: %v %v %v %v", name, Version, Revision, GoVersion, BuildDate)
 	if version {
-		fmt.Println(server.Version(name, Tag))
+		fmt.Println(versionInfo)
+		flag.PrintDefaults()
 		return
 	}
 	if debugMode {
@@ -90,7 +100,7 @@ func main() {
 	addr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
 	logInfo.Printf("starting server on %s, debugMode=%v", addr, debugMode)
 
-	if err = s.ListenAndServe(addr, sigint); err != nil {
+	if err = s.ListenAndServe(addr, nil, sigint); err != nil {
 		logInfo.Printf("server listen error: %s", err)
 	}
 	logInfo.Println("server stopped")

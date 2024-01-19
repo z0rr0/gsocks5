@@ -3,6 +3,7 @@ package dns
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"time"
@@ -21,12 +22,15 @@ type nameResolver struct {
 // Resolve resolves the given host name to an address.
 func (nr *nameResolver) Resolve(ctx context.Context, name string) (context.Context, net.IP, error) {
 	ips, err := nr.r.LookupIP(ctx, "ip", name)
+
 	if err != nil {
 		return ctx, nil, err
 	}
+
 	if len(ips) == 0 {
 		return ctx, nil, nil
 	}
+
 	return ctx, ips[0], nil
 }
 
@@ -38,18 +42,20 @@ func New(dnsHost string, timeout time.Duration, loggerInfo, loggerDebug *log.Log
 		return socks5.DNSResolver{}, nil
 	}
 
-	if ip := net.ParseIP(dnsHost); ip == nil {
-		return nil, ErrHostIP
+	ip := net.ParseIP(dnsHost)
+	if ip == nil {
+		return nil, errors.Join(ErrHostIP, fmt.Errorf("invalid DNS host: %s", dnsHost))
 	}
 
-	address := net.JoinHostPort(dnsHost, port)
-	loggerInfo.Printf("using DNS server %s", address)
+	address := net.JoinHostPort(ip.String(), port)
+	loggerInfo.Printf("using DNS server %q", address)
 
 	resolver := &net.Resolver{
 		PreferGo: true,
 		Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
+			var d = net.Dialer{Timeout: timeout}
 			loggerDebug.Printf("dialing DNS server %s, network %s, timeout %v", address, network, timeout)
-			d := net.Dialer{Timeout: timeout}
+
 			return d.DialContext(ctx, network, address)
 		},
 	}

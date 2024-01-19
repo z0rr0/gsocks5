@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"io"
 	"log"
 	"os"
 	"testing"
@@ -9,7 +8,7 @@ import (
 	"github.com/armon/go-socks5"
 )
 
-var logger = log.New(io.Discard, "test", log.LstdFlags)
+var logger = log.New(os.Stdout, "[test] ", log.LstdFlags|log.Lshortfile)
 
 func userFile(rows []string) (string, error) {
 	f, err := os.CreateTemp("", "users_gsocks5_test")
