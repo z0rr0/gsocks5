@@ -15,6 +15,7 @@ import (
 
 	"github.com/armon/go-socks5"
 
+	"github.com/z0rr0/gsocks5/args"
 	"github.com/z0rr0/gsocks5/auth"
 	"github.com/z0rr0/gsocks5/dns"
 	"github.com/z0rr0/gsocks5/server"
@@ -33,31 +34,36 @@ var (
 	GoVersion = runtime.Version()
 
 	logInfo  = log.New(os.Stdout, name+" [INFO]: ", log.LstdFlags)
-	logDebug = log.New(io.Discard, name+" [DEBUG]: ", log.LstdFlags|log.Lshortfile)
+	logDebug = log.New(io.Discard, name+" [DEBUG]: ", log.LstdFlags|log.Lshortfile|log.Lmicroseconds)
 )
 
 func main() {
 	var (
-		authFile  string
-		customDNS string
-		host      string
-		version   bool
-		port      uint
-		timeout   uint
-		debugMode bool
+		authFile   string
+		customDNS  string
+		host       string
+		version    bool
+		debugMode  bool
+		concurrent        = 100
+		port       uint16 = 1080
+		timeoutDNS        = 5 * time.Second
 	)
 	defer func() {
 		if r := recover(); r != nil {
 			logInfo.Printf("abnormal termination [%v]: %v\n", Version, r)
 		}
 	}()
-	flag.StringVar(&authFile, "auth", "", "authentication file")
-	flag.StringVar(&customDNS, "dns", "", "custom DNS server")
+
+	flag.StringVar(&customDNS, "dns", customDNS, "custom DNS server")
 	flag.BoolVar(&version, "version", false, "show version")
 	flag.StringVar(&host, "host", "", "server host")
-	flag.UintVar(&port, "port", 1080, "port to listen on")
-	flag.UintVar(&timeout, "timeout", 5, "context timeout (seconds)")
+	flag.DurationVar(&timeoutDNS, "timeout", timeoutDNS, "context timeout")
 	flag.BoolVar(&debugMode, "debug", false, "debug mode")
+	flag.Func("port", args.PortDescription(port), func(s string) error { return args.IsPort(s, &port) })
+	flag.Func("auth", "authentication file", func(s string) error { return args.IsFile(s, &authFile) })
+	flag.Func("concurrent", args.ConcurrentDescription(concurrent), func(s string) error {
+		return args.IsConcurrent(s, &concurrent)
+	})
 
 	flag.Parse()
 
@@ -76,7 +82,6 @@ func main() {
 		logInfo.Fatal(err)
 	}
 
-	timeoutDNS := time.Duration(timeout) * time.Second
 	resolver, err := dns.New(customDNS, timeoutDNS, logInfo, logDebug)
 	if err != nil {
 		logInfo.Fatal(err)
@@ -98,10 +103,15 @@ func main() {
 	}
 
 	addr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
-	logInfo.Printf("starting server on %s, debugMode=%v", addr, debugMode)
+	logInfo.Printf(
+		"starting server on %q, dns=%q, timeout=%v, concurrent=%d, debug=%v, auth=%q\n",
+		addr, customDNS, timeoutDNS, concurrent, debugMode, authFile,
+	)
 
-	if err = s.ListenAndServe(addr, nil, sigint); err != nil {
+	params := &server.Params{Addr: addr, Concurrent: concurrent, Sigint: sigint}
+	if err = s.ListenAndServe(params); err != nil {
 		logInfo.Printf("server listen error: %s", err)
 	}
+
 	logInfo.Println("server stopped")
 }

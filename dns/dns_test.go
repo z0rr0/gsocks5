@@ -12,7 +12,7 @@ import (
 
 var (
 	logger  = log.New(os.Stdout, "[test] ", log.LstdFlags|log.Lshortfile)
-	timeout = 5 * time.Second
+	timeout = 2 * time.Second
 )
 
 func TestNew(t *testing.T) {

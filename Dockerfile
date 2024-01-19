@@ -5,7 +5,7 @@ ARG LDFLAGS
 WORKDIR /go/src/github.com/z0rr0/gsocks5
 COPY . .
 RUN echo "LDFLAGS = $LDFLAGS"
-RUN GOOS=linux go build -ldflags "$LDFLAGS" -o ./gobot
+RUN GOOS=linux go build -ldflags "$LDFLAGS" -o ./gsocks5
 
 FROM scratch
 LABEL org.opencontainers.image.authors="me@axv.email" \
@@ -20,4 +20,5 @@ COPY --from=builder /go/src/github.com/z0rr0/gsocks5/gsocks5 /bin/
 RUN chmod 0755 /bin/gsocks5
 
 VOLUME ["/data/"]
+EXPOSE 1080
 ENTRYPOINT ["/bin/gsocks5"]

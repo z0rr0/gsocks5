@@ -14,20 +14,23 @@ import (
 var logger = log.New(os.Stdout, "[test] ", log.LstdFlags|log.Lshortfile)
 
 func run(t *testing.T, s *Server, i, port int, isErr bool) (string, chan os.Signal) {
-	sigint := make(chan os.Signal)
-	start := make(chan struct{})
-	addr := net.JoinHostPort("localhost", strconv.Itoa(port))
+	params := &Params{
+		Addr:       net.JoinHostPort("localhost", strconv.Itoa(port)),
+		Concurrent: 1,
+		Done:       make(chan struct{}),
+		Sigint:     make(chan os.Signal),
+	}
 
 	go func() {
-		if err := s.ListenAndServe(addr, start, sigint); err != nil {
+		if err := s.ListenAndServe(params); err != nil {
 			if !isErr {
 				t.Errorf("run server case %d: %v", i, err)
 			}
 		}
 	}()
 
-	<-start
-	return addr, sigint
+	<-params.Done
+	return params.Addr, params.Sigint
 }
 
 func TestNew(t *testing.T) {
@@ -69,7 +72,6 @@ func TestNew(t *testing.T) {
 				tt.Errorf("close connection, case [%d] %s: %v", i, c.name, err)
 			}
 
-			//time.Sleep(100 * time.Millisecond) // wait for server handle connection
 			sigint <- os.Interrupt
 		})
 	}

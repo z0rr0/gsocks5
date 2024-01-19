@@ -22,6 +22,7 @@ type nameResolver struct {
 // Resolve resolves the given host name to an address.
 func (nr *nameResolver) Resolve(ctx context.Context, name string) (context.Context, net.IP, error) {
 	ips, err := nr.r.LookupIP(ctx, "ip", name)
+	fmt.Println("xaz", ips)
 
 	if err != nil {
 		return ctx, nil, err
