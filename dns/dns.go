@@ -22,7 +22,6 @@ type nameResolver struct {
 // Resolve resolves the given host name to an address.
 func (nr *nameResolver) Resolve(ctx context.Context, name string) (context.Context, net.IP, error) {
 	ips, err := nr.r.LookupIP(ctx, "ip", name)
-	fmt.Println("xaz", ips)
 
 	if err != nil {
 		return ctx, nil, err
@@ -38,8 +37,9 @@ func (nr *nameResolver) Resolve(ctx context.Context, name string) (context.Conte
 // New returns a new name nameResolver.
 func New(dnsHost string, timeout time.Duration, loggerInfo, loggerDebug *log.Logger) (socks5.NameResolver, error) {
 	const port = "53"
+
 	if dnsHost == "" {
-		loggerInfo.Printf("using default DNS nameResolver")
+		loggerInfo.Printf("use default DNS name resolver")
 		return socks5.DNSResolver{}, nil
 	}
 
@@ -60,5 +60,6 @@ func New(dnsHost string, timeout time.Duration, loggerInfo, loggerDebug *log.Log
 			return d.DialContext(ctx, network, address)
 		},
 	}
+
 	return &nameResolver{r: resolver}, nil
 }
