@@ -1,6 +1,6 @@
 ARG GOLANG_VERSION="1.23.1"
 
-FROM golang:${GOLANG_VERSION}-alpine as builder
+FROM golang:${GOLANG_VERSION}-alpine AS builder
 ARG LDFLAGS
 WORKDIR /go/src/github.com/z0rr0/gsocks5
 COPY . .
