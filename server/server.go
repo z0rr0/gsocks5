@@ -86,7 +86,7 @@ func (s *Server) listen(ctx context.Context, p *Params, done chan<- struct{}) (<
 
 	go func() {
 		for {
-			semaphore <- struct{}{} // limit connections
+			semaphore <- struct{}{} // limit connections, Server.handle will release it
 			if conn, e := s.accept(listener, p); e != nil {
 				if errors.Is(e, net.ErrClosed) {
 					break
@@ -143,10 +143,10 @@ func (s *Server) handle(p *Params, conn net.Conn, semaphore <-chan struct{}) {
 	defer func() {
 		<-semaphore // release the limitation
 		if closeErr := conn.Close(); closeErr != nil {
-			if !errors.Is(closeErr, net.ErrClosed) {
-				s.logInfo.Printf("failed to close connection from client %q: %v", client, closeErr)
-			} else {
+			if errors.Is(closeErr, net.ErrClosed) {
 				s.logDebug.Printf("connection from %s is closed", client)
+			} else {
+				s.logInfo.Printf("failed to close connection from client %q: %v", client, closeErr)
 			}
 		}
 		p.wg.Done()
