@@ -89,12 +89,12 @@ func TestIsConcurrent(t *testing.T) {
 	testCases := []struct {
 		name    string
 		value   string
-		want    int
+		want    uint64
 		wantErr bool
 	}{
 		{name: "ValidConcurrent", value: "100", want: 100},
 		{name: "TooLowConcurrent", value: "0", wantErr: true},
-		{name: "TooHighConcurrent", value: "100001", wantErr: true},
+		{name: "TooHighConcurrent", value: "4294967296", wantErr: true},
 		{name: "NonNumericConcurrent", value: "abc", wantErr: true},
 	}
 
@@ -102,14 +102,14 @@ func TestIsConcurrent(t *testing.T) {
 		tc := testCases[i]
 
 		t.Run(tc.name, func(t *testing.T) {
-			var result int
+			var result uint32
 			err := IsConcurrent(tc.value, &result)
 
 			if (err != nil) != tc.wantErr {
 				t.Errorf("IsConcurrent() error = %v, wantErr %v", err, tc.wantErr)
 				return
 			}
-			if result != tc.want {
+			if uint64(result) != tc.want {
 				t.Errorf("IsConcurrent() = %v, want %v", result, tc.want)
 			}
 		})
@@ -126,8 +126,8 @@ func TestPortDescription(t *testing.T) {
 }
 
 func TestConcurrentDescription(t *testing.T) {
-	result := ConcurrentDescription(100)
-	expected := "number of concurrent connections in range [1, 10000] (default 100)"
+	result := ConcurrentDescription(10000)
+	expected := "number of concurrent connections in range [1, 1000000] (default 10000)"
 
 	if result != expected {
 		t.Errorf("ConcurrentDescription() = %v, want %v", result, expected)

@@ -44,7 +44,7 @@ func main() {
 		host        string
 		version     bool
 		debugMode   bool
-		connections        = 100
+		connections uint32 = 1024
 		port        uint16 = 1080
 		timeout            = 3 * time.Minute
 		timeoutDNS         = 5 * time.Second

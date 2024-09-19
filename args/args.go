@@ -10,8 +10,8 @@ const (
 	mintPort = 1
 	maxPort  = 65535
 
-	minConcurrent = 1
-	maxConcurrent = 10_000
+	minConcurrent uint64 = 1
+	maxConcurrent uint64 = 1_000_000
 )
 
 // IsFile checks that the value is a file.
@@ -45,8 +45,8 @@ func IsPort(value string, result *uint16) error {
 }
 
 // IsConcurrent checks that the value is a valid number of concurrent connections.
-func IsConcurrent(value string, result *int) error {
-	integer, err := strconv.Atoi(value)
+func IsConcurrent(value string, result *uint32) error {
+	integer, err := strconv.ParseUint(value, 10, 32)
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func IsConcurrent(value string, result *int) error {
 		return fmt.Errorf("value is out of range")
 	}
 
-	*result = integer
+	*result = uint32(integer)
 	return nil
 }
 
@@ -65,7 +65,7 @@ func PortDescription(value uint16) string {
 }
 
 // ConcurrentDescription returns a description of the concurrent argument.
-func ConcurrentDescription(value int) string {
+func ConcurrentDescription(value uint32) string {
 	return fmt.Sprintf(
 		"number of concurrent connections in range [%d, %d] (default %d)",
 		minConcurrent, maxConcurrent, value,

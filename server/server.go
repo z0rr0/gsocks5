@@ -23,8 +23,8 @@ type Server struct {
 // Params is a start parameters for the server.
 type Params struct {
 	Addr        string
-	Connections int
-	Done        chan struct{}
+	Connections uint32
+	Done        chan struct{} // only for testing
 	Sigint      chan os.Signal
 	Timeout     time.Duration
 	setReady    sync.Once
@@ -59,16 +59,51 @@ func (s *Server) ListenAndServe(p *Params) error {
 	}()
 
 	done := make(chan struct{})
-	connections, err := s.listen(ctx, p, done)
+	connections, semaphore, err := s.listen(ctx, p, done)
 	if err != nil {
 		return err
 	}
 
 	s.logDebug.Printf("listener started on %s", p.Addr)
 	p.Ready()
-	s.startWorkers(p, connections)
+	go s.start(p, connections, semaphore)
 
 	return s.waitClose(p, done)
+}
+
+// listen starts goroutine to accept incoming connections and sends them to a returned channel.
+func (s *Server) listen(ctx context.Context, p *Params, done chan<- struct{}) (<-chan net.Conn, <-chan struct{}, error) {
+	var lc net.ListenConfig
+
+	listener, err := lc.Listen(ctx, "tcp", p.Addr)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to listen on %s: %w", p.Addr, err)
+	}
+
+	p.listener = listener // to close it later
+	connections := make(chan net.Conn)
+	semaphore := make(chan struct{}, p.Connections)
+
+	go func() {
+		for {
+			semaphore <- struct{}{} // limit connections
+			if conn, e := s.accept(listener, p); e != nil {
+				if errors.Is(e, net.ErrClosed) {
+					break
+				}
+				s.logInfo.Printf("failed to accept connection [%T]: %v", e, e)
+			} else {
+				connections <- conn
+			}
+		}
+
+		s.logDebug.Printf("listener stopped")
+		close(connections) // finish workers
+		close(semaphore)   // no new incoming connections
+		close(done)
+	}()
+
+	return connections, semaphore, nil
 }
 
 // accept accepts a new connection.
@@ -88,64 +123,39 @@ func (s *Server) accept(listener net.Listener, p *Params) (net.Conn, error) {
 	return conn, nil
 }
 
-// listen starts goroutine to accept incoming connections and sends them to a returned channel.
-func (s *Server) listen(ctx context.Context, p *Params, done chan<- struct{}) (<-chan net.Conn, error) {
-	var lc net.ListenConfig
-
-	listener, err := lc.Listen(ctx, "tcp", p.Addr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to listen on %s: %w", p.Addr, err)
+// start starts workers to handle incoming connections.
+func (s *Server) start(p *Params, connections <-chan net.Conn, semaphore <-chan struct{}) {
+	for conn := range connections {
+		go s.handle(p, conn, semaphore)
 	}
-
-	p.listener = listener // to close it later
-	connections := make(chan net.Conn)
-
-	go func() {
-		for {
-			if conn, e := s.accept(listener, p); e != nil {
-				if errors.Is(e, net.ErrClosed) {
-					break
-				}
-				s.logInfo.Printf("failed to accept connection [%T]: %v", e, e)
-			} else {
-				connections <- conn
-			}
-		}
-
-		s.logDebug.Printf("listener stopped")
-		close(connections) // finish workers
-		close(done)
-	}()
-
-	return connections, nil
+	s.logInfo.Printf("finished connections handling cycle")
 }
 
-// startWorkers starts workers to handle incoming connections.
-func (s *Server) startWorkers(p *Params, connections <-chan net.Conn) {
-	for i := 0; i < p.Connections; i++ {
-		go func() {
-			var (
-				client string
-				err    error
-				t      time.Time
-			)
+func (s *Server) handle(p *Params, conn net.Conn, semaphore <-chan struct{}) {
+	var (
+		t      = time.Now()
+		client = conn.RemoteAddr().String()
+		err    error
+	)
+	p.wg.Add(1)
 
-			for conn := range connections {
-				p.wg.Add(1)
-
-				t = time.Now()
-				client = conn.RemoteAddr().String()
-				s.logDebug.Printf("accepted connection from %s", client)
-
-				if err = s.S.ServeConn(conn); err != nil {
-					s.logInfo.Printf("failed to serve connection from client %q: %v", client, err)
-				} else {
-					s.logDebug.Printf("connection served from %s during %v", client, time.Since(t))
-				}
-
-				p.wg.Done()
+	s.logDebug.Printf("accepted connection from %s", client)
+	defer func() {
+		<-semaphore // release the limitation
+		if closeErr := conn.Close(); closeErr != nil {
+			if !errors.Is(closeErr, net.ErrClosed) {
+				s.logInfo.Printf("failed to close connection from client %q: %v", client, closeErr)
+			} else {
+				s.logDebug.Printf("connection from %s is closed", client)
 			}
-		}()
+		}
+		p.wg.Done()
+	}()
+
+	if err = s.S.ServeConn(conn); err != nil {
+		s.logInfo.Printf("failed to serve connection from client %q: %v", client, err)
+	} else {
+		s.logDebug.Printf("connection served from %s during %v", client, time.Since(t))
 	}
 }
 
@@ -161,7 +171,7 @@ func (s *Server) waitClose(p *Params, done <-chan struct{}) error {
 
 	<-done      // wait for listener accept was stopped
 	p.wg.Wait() // wait for all connections to be handled
-
 	s.logInfo.Printf("all connections are handled")
+
 	return nil
 }

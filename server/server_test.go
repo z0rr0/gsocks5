@@ -12,7 +12,9 @@ import (
 	"golang.org/x/net/proxy"
 )
 
-var logger = log.New(os.Stdout, "[test] ", log.LstdFlags|log.Lshortfile)
+const timeout = 2 * time.Second
+
+var logger = log.New(os.Stdout, "[test] ", log.LstdFlags|log.Lshortfile|log.Lmicroseconds)
 
 func run(t *testing.T, s *Server, i, port int, isErr bool) (string, chan os.Signal) {
 	params := &Params{
@@ -20,7 +22,7 @@ func run(t *testing.T, s *Server, i, port int, isErr bool) (string, chan os.Sign
 		Connections: 1,
 		Done:        make(chan struct{}),
 		Sigint:      make(chan os.Signal),
-		Timeout:     time.Second,
+		Timeout:     timeout,
 	}
 
 	go func() {
@@ -35,19 +37,55 @@ func run(t *testing.T, s *Server, i, port int, isErr bool) (string, chan os.Sign
 	return params.Addr, params.Sigint
 }
 
+type testHost struct {
+	host  string
+	port  int
+	close bool
+}
+
 func TestNew(t *testing.T) {
 	cases := []struct {
-		name string
-		port int
-		host string
-		err  bool
+		name  string
+		port  int
+		hosts []testHost
+		err   bool
 	}{
-		{name: "empty", port: 1080, host: "github.com:443"},
+		{name: "one", port: 1080, hosts: []testHost{{host: "github.com", port: 443}}},
+		{
+			name: "two",
+			port: 1080,
+			hosts: []testHost{
+				{host: "github.com", port: 443},
+				{host: "leetcode.com", port: 443, close: true},
+			},
+		},
+		{
+			name: "three",
+			port: 1080,
+			hosts: []testHost{
+				{host: "github.com", port: 443, close: true},
+				{host: "leetcode.com", port: 443, close: true},
+				{host: "leetcode.com", port: 80},
+			},
+		},
+		{
+			name: "many",
+			port: 1080,
+			hosts: []testHost{
+				{host: "github.com", port: 443, close: true},
+				{host: "github.com", port: 80},
+				{host: "leetcode.com", port: 443, close: true},
+				{host: "leetcode.com", port: 80},
+			},
+		},
 		{name: "badPort", port: 131072, err: true},
 	}
 	for i, c := range cases {
 		t.Run(c.name, func(tt *testing.T) {
-			cfg := &socks5.Config{Logger: logger}
+			var (
+				conn net.Conn
+				cfg  = &socks5.Config{Logger: logger}
+			)
 			s, err := New(cfg, logger, logger)
 			if err != nil {
 				tt.Errorf("case [%d] %s: unexpected error: %v", i, c.name, err)
@@ -65,15 +103,18 @@ func TestNew(t *testing.T) {
 				tt.Errorf("case [%d] %s: unexpected error: %v", i, c.name, err)
 			}
 
-			conn, err := dialer.Dial("tcp", c.host)
-			if err != nil {
-				tt.Fatalf("set connection, case [%d] %s: %v", i, c.name, err)
-			}
+			for _, h := range c.hosts {
+				conn, err = dialer.Dial("tcp", net.JoinHostPort(h.host, strconv.Itoa(h.port)))
+				if err != nil {
+					tt.Errorf("case [%d] %s: %v", i, c.name, err)
+				}
 
-			if err = conn.Close(); err != nil {
-				tt.Errorf("close connection, case [%d] %s: %v", i, c.name, err)
+				if h.close {
+					if err = conn.Close(); err != nil {
+						tt.Errorf("case [%d] %s: %v", i, c.name, err)
+					}
+				}
 			}
-
 			sigint <- os.Interrupt
 		})
 	}

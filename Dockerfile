@@ -1,4 +1,4 @@
-ARG GOLANG_VERSION="1.22.1"
+ARG GOLANG_VERSION="1.23.1"
 
 FROM golang:${GOLANG_VERSION}-alpine as builder
 ARG LDFLAGS
@@ -7,7 +7,7 @@ COPY . .
 RUN echo "LDFLAGS = $LDFLAGS"
 RUN GOOS=linux go build -ldflags "$LDFLAGS" -o ./gsocks5
 
-FROM alpine:3.19
+FROM alpine:3.20
 LABEL org.opencontainers.image.authors="me@axv.email" \
         org.opencontainers.image.url="https://hub.docker.com/r/z0rr0/gsocks5" \
         org.opencontainers.image.documentation="https://github.com/z0rr0/gsocks5" \
