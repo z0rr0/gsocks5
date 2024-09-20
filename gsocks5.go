@@ -17,6 +17,7 @@ import (
 
 	"github.com/z0rr0/gsocks5/args"
 	"github.com/z0rr0/gsocks5/auth"
+	"github.com/z0rr0/gsocks5/conn"
 	"github.com/z0rr0/gsocks5/dns"
 	"github.com/z0rr0/gsocks5/server"
 )
@@ -39,15 +40,17 @@ var (
 
 func main() {
 	var (
-		authFile    string
-		customDNS   string
-		host        string
-		version     bool
-		debugMode   bool
-		connections uint32 = 1024
-		port        uint16 = 1080
-		timeout            = 3 * time.Minute
-		timeoutDNS         = 5 * time.Second
+		authFile         string
+		customDNS        string
+		host             string
+		version          bool
+		debugMode        bool
+		connections      uint32 = 1024
+		port             uint16 = 1080
+		timeoutIdle             = 15 * time.Second
+		timeoutDNS              = 5 * time.Second
+		timeoutKeepAlive        = 30 * time.Second
+		timeoutConn             = 5 * time.Second
 	)
 	defer func() {
 		if r := recover(); r != nil {
@@ -58,8 +61,10 @@ func main() {
 	flag.StringVar(&customDNS, "dns", customDNS, "custom DNS server")
 	flag.BoolVar(&version, "version", false, "show version")
 	flag.StringVar(&host, "host", "", "server host")
-	flag.DurationVar(&timeout, "t", timeout, "connection timeout")
-	flag.DurationVar(&timeoutDNS, "dt", timeoutDNS, "dns connection timeout")
+	flag.DurationVar(&timeoutIdle, "ti", timeoutIdle, "idle timeout")
+	flag.DurationVar(&timeoutDNS, "td", timeoutDNS, "dns timeout")
+	flag.DurationVar(&timeoutKeepAlive, "tk", timeoutKeepAlive, "keepalive timeout")
+	flag.DurationVar(&timeoutConn, "tc", timeoutConn, "connection timeout")
 	flag.BoolVar(&debugMode, "debug", false, "debug mode")
 	flag.Func("port", args.PortDescription(port), func(s string) error { return args.IsPort(s, &port) })
 	flag.Func("auth", "authentication file", func(s string) error { return args.IsFile(s, &authFile) })
@@ -88,10 +93,12 @@ func main() {
 		logInfo.Fatal(err)
 	}
 
+	dialer := &net.Dialer{Timeout: timeoutConn, KeepAlive: timeoutKeepAlive}
 	cfg := &socks5.Config{
 		Logger:      logInfo,
 		Credentials: credentials,
 		Resolver:    resolver,
+		Dial:        conn.Dial(dialer, timeoutIdle, logInfo),
 	}
 
 	sigint := make(chan os.Signal, 1)
@@ -106,11 +113,11 @@ func main() {
 	addr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
 	logInfo.Println(versionInfo)
 	logInfo.Printf(
-		"starting server on %q, dns=%q, dns timeout=%v, cons timeout=%v, connections=%d, debug=%v, auth=%q\n",
-		addr, customDNS, timeoutDNS, timeout, connections, debugMode, authFile,
+		"starting server on %q, dns=%q, dns timeoutIdle=%v, cons timeoutIdle=%v, connections=%d, debug=%v, auth=%q\n",
+		addr, customDNS, timeoutDNS, timeoutIdle, connections, debugMode, authFile,
 	)
 
-	params := &server.Params{Addr: addr, Connections: connections, Sigint: sigint, Timeout: timeout}
+	params := &server.Params{Addr: addr, Connections: connections, Sigint: sigint}
 	if err = s.ListenAndServe(params); err != nil {
 		logInfo.Printf("server listen error: %s", err)
 	}

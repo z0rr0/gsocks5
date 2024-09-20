@@ -10,9 +10,11 @@ import (
 
 	"github.com/armon/go-socks5"
 	"golang.org/x/net/proxy"
+
+	"github.com/z0rr0/gsocks5/conn"
 )
 
-const timeout = 2 * time.Second
+const timeout = 200 * time.Millisecond
 
 var logger = log.New(os.Stdout, "[test] ", log.LstdFlags|log.Lshortfile|log.Lmicroseconds)
 
@@ -22,7 +24,6 @@ func run(t *testing.T, s *Server, i, port int, isErr bool) (string, chan os.Sign
 		Connections: 1,
 		Done:        make(chan struct{}),
 		Sigint:      make(chan os.Signal),
-		Timeout:     timeout,
 	}
 
 	go func() {
@@ -83,8 +84,9 @@ func TestNew(t *testing.T) {
 	for i, c := range cases {
 		t.Run(c.name, func(tt *testing.T) {
 			var (
-				conn net.Conn
-				cfg  = &socks5.Config{Logger: logger}
+				connection net.Conn
+				cfgDialer  = &net.Dialer{Timeout: timeout * 15}
+				cfg        = &socks5.Config{Logger: logger, Dial: conn.Dial(cfgDialer, timeout, logger)}
 			)
 			s, err := New(cfg, logger, logger)
 			if err != nil {
@@ -104,13 +106,13 @@ func TestNew(t *testing.T) {
 			}
 
 			for _, h := range c.hosts {
-				conn, err = dialer.Dial("tcp", net.JoinHostPort(h.host, strconv.Itoa(h.port)))
+				connection, err = dialer.Dial("tcp", net.JoinHostPort(h.host, strconv.Itoa(h.port)))
 				if err != nil {
 					tt.Errorf("case [%d] %s: %v", i, c.name, err)
 				}
 
 				if h.close {
-					if err = conn.Close(); err != nil {
+					if err = connection.Close(); err != nil {
 						tt.Errorf("case [%d] %s: %v", i, c.name, err)
 					}
 				}
