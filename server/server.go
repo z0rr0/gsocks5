@@ -138,10 +138,9 @@ func (s *Server) handle(p *Params, conn net.Conn, semaphore <-chan struct{}) {
 		err    error
 	)
 	p.wg.Add(1)
-
 	s.logDebug.Printf("accepted connection from %s", client)
+
 	defer func() {
-		<-semaphore // release the limitation
 		if closeErr := conn.Close(); closeErr != nil {
 			if errors.Is(closeErr, net.ErrClosed) {
 				s.logDebug.Printf("connection from %s is closed", client)
@@ -149,6 +148,7 @@ func (s *Server) handle(p *Params, conn net.Conn, semaphore <-chan struct{}) {
 				s.logInfo.Printf("failed to close connection from client %q: %v", client, closeErr)
 			}
 		}
+		<-semaphore // release the limitation
 		p.wg.Done()
 	}()
 
@@ -169,9 +169,11 @@ func (s *Server) waitClose(p *Params, done <-chan struct{}) error {
 		return fmt.Errorf("failed to close listener: %w", err)
 	}
 
-	<-done      // wait for listener accept was stopped
-	p.wg.Wait() // wait for all connections to be handled
-	s.logInfo.Printf("all connections are handled")
+	<-done
+	s.logInfo.Println("listener is closed")
+
+	p.wg.Wait()
+	s.logInfo.Println("all connections are handled")
 
 	return nil
 }
