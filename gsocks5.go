@@ -112,9 +112,14 @@ func main() {
 
 	addr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
 	logInfo.Println(versionInfo)
+
 	logInfo.Printf(
-		"starting server on %q, dns=%q, dns timeoutIdle=%v, cons timeoutIdle=%v, connections=%d, debug=%v, auth=%q\n",
-		addr, customDNS, timeoutDNS, timeoutIdle, connections, debugMode, authFile,
+		"timeouts: idle=%v, dns=%v, keepalive=%v, connection=%v\n",
+		timeoutIdle, timeoutDNS, timeoutKeepAlive, timeoutConn,
+	)
+	logInfo.Printf(
+		"starting server on %q, dns=%q, connections=%d, debug=%v, auth=%q\n",
+		addr, customDNS, connections, debugMode, authFile,
 	)
 
 	params := &server.Params{Addr: addr, Connections: connections, Sigint: sigint}
