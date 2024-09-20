@@ -146,7 +146,12 @@ func (s *Server) handle(p *Params, conn net.Conn, semaphore <-chan struct{}) {
 	}()
 
 	if err = s.S.ServeConn(conn); err != nil {
-		s.logInfo.Printf("failed to serve connection from client %q: %v", client, err)
+		var nErr net.Error
+		if errors.As(err, &nErr) && nErr.Timeout() {
+			s.logDebug.Printf("connection from %s is closed due to timeout: %v", client, err)
+		} else {
+			s.logInfo.Printf("failed to serve connection from client %q: %v", client, err)
+		}
 	} else {
 		s.logDebug.Printf("connection served from %s during %v", client, time.Since(t))
 	}
