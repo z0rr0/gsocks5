@@ -2,6 +2,7 @@ package conn
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -25,22 +26,38 @@ func newIdleTimeoutConn(conn net.Conn, timeout time.Duration, logger *log.Logger
 
 // Read reads data from the connection.
 func (c *idleTimeoutConn) Read(b []byte) (int, error) {
-	if c.timeout > 0 {
-		if err := c.Conn.SetReadDeadline(time.Now().Add(c.timeout)); err != nil {
-			c.logger.Printf("failed to set read deadline: %v", err)
+	var netErr net.Error
+	n, err := c.Conn.Read(b)
+
+	if err != nil {
+		if errors.As(err, &netErr) && netErr.Timeout() {
+			c.logger.Printf("idleTimeoutConn read timeout from %s to %s", c.Conn.RemoteAddr(), c.Conn.LocalAddr())
+		}
+	} else if c.timeout > 0 {
+		if deadlineErr := c.Conn.SetReadDeadline(time.Now().Add(c.timeout)); deadlineErr != nil {
+			c.logger.Printf("idleTimeoutConn failed to set read deadline: %v", deadlineErr)
 		}
 	}
-	return c.Conn.Read(b)
+
+	return n, err
 }
 
 // Write writes data to the connection.
 func (c *idleTimeoutConn) Write(b []byte) (int, error) {
-	if c.timeout > 0 {
-		if err := c.Conn.SetWriteDeadline(time.Now().Add(c.timeout)); err != nil {
-			c.logger.Printf("failed to set write deadline: %v", err)
+	var netErr net.Error
+	n, err := c.Conn.Write(b)
+
+	if err != nil {
+		if errors.As(err, &netErr) && netErr.Timeout() {
+			c.logger.Printf("idleTimeoutConn write timeout from %s to %s", c.Conn.RemoteAddr(), c.Conn.LocalAddr())
+		}
+	} else if c.timeout > 0 {
+		if deadlineErr := c.Conn.SetWriteDeadline(time.Now().Add(c.timeout)); deadlineErr != nil {
+			c.logger.Printf("idleTimeoutConn failed to set write deadline: %v", deadlineErr)
 		}
 	}
-	return c.Conn.Write(b)
+
+	return n, err
 }
 
 // Dial creates a new DialType.

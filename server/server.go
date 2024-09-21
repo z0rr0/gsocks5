@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -132,6 +133,7 @@ func (s *Server) start(p *Params, connections <-chan net.Conn, semaphore <-chan 
 }
 
 func (s *Server) handle(p *Params, conn net.Conn, semaphore <-chan struct{}) {
+	const skipError = "i/o timeout"
 	var (
 		t      = time.Now()
 		client = conn.RemoteAddr().String()
@@ -153,11 +155,10 @@ func (s *Server) handle(p *Params, conn net.Conn, semaphore <-chan struct{}) {
 	}()
 
 	if err = s.S.ServeConn(conn); err != nil {
-		var netErr net.Error
-		if errors.As(err, &netErr) && netErr.Timeout() {
-			s.logDebug.Printf("connection from %s is closed due to timeout [%T]: %v", client, err, err)
+		if errMsg := err.Error(); strings.HasSuffix(errMsg, skipError) {
+			s.logDebug.Printf("connection from %s is closed due to timeout: %v", client, err)
 		} else {
-			s.logInfo.Printf("failed to serve connection from client %q: %v", client, err)
+			s.logInfo.Printf("failed to serve connection from client %q [%T]: %v", client, err, err)
 		}
 	} else {
 		s.logDebug.Printf("connection served from %s during %v", client, time.Since(t))

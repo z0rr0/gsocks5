@@ -14,16 +14,17 @@ import (
 	"github.com/z0rr0/gsocks5/conn"
 )
 
-const timeout = 200 * time.Millisecond
+const timeout = 250 * time.Millisecond
 
 var logger = log.New(os.Stdout, "[test] ", log.LstdFlags|log.Lshortfile|log.Lmicroseconds)
 
-func run(t *testing.T, s *Server, i, port int, isErr bool) (string, chan os.Signal) {
+func run(t *testing.T, s *Server, i, port int, isErr bool, count uint32) (string, chan os.Signal) {
 	params := &Params{
 		Addr:        net.JoinHostPort("localhost", strconv.Itoa(port)),
-		Connections: 1,
+		Connections: count,
 		Done:        make(chan struct{}),
 		Sigint:      make(chan os.Signal),
+		Timeout:     timeout,
 	}
 
 	go func() {
@@ -48,21 +49,24 @@ func TestNew(t *testing.T) {
 	cases := []struct {
 		name  string
 		port  int
+		count uint32
 		hosts []testHost
 		err   bool
 	}{
-		{name: "one", port: 1080, hosts: []testHost{{host: "github.com", port: 443}}},
+		{name: "one", port: 1080, count: 1, hosts: []testHost{{host: "github.com", port: 443}}},
 		{
-			name: "two",
-			port: 1080,
+			name:  "two",
+			port:  1080,
+			count: 2,
 			hosts: []testHost{
 				{host: "github.com", port: 443},
 				{host: "leetcode.com", port: 443, close: true},
 			},
 		},
 		{
-			name: "three",
-			port: 1080,
+			name:  "three",
+			port:  1080,
+			count: 3,
 			hosts: []testHost{
 				{host: "github.com", port: 443, close: true},
 				{host: "leetcode.com", port: 443, close: true},
@@ -70,8 +74,9 @@ func TestNew(t *testing.T) {
 			},
 		},
 		{
-			name: "many",
-			port: 1080,
+			name:  "many",
+			port:  1080,
+			count: 10,
 			hosts: []testHost{
 				{host: "github.com", port: 443, close: true},
 				{host: "github.com", port: 80},
@@ -93,7 +98,7 @@ func TestNew(t *testing.T) {
 				tt.Errorf("case [%d] %s: unexpected error: %v", i, c.name, err)
 			}
 
-			addr, sigint := run(tt, s, i, c.port, c.err)
+			addr, sigint := run(tt, s, i, c.port, c.err, c.count)
 			defer close(sigint)
 
 			if c.err {

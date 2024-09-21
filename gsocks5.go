@@ -47,10 +47,10 @@ func main() {
 		debugMode        bool
 		connections      uint32 = 1024
 		port             uint16 = 1080
-		timeoutIdle             = 20 * time.Second
+		timeoutIdle             = 30 * time.Second
 		timeoutDNS              = 5 * time.Second
 		timeoutKeepAlive        = 90 * time.Second
-		timeoutConn             = 5 * time.Second
+		timeoutConn             = 10 * time.Second
 	)
 	defer func() {
 		if r := recover(); r != nil {
