@@ -49,8 +49,8 @@ func main() {
 		port             uint16 = 1080
 		timeoutIdle             = 20 * time.Second
 		timeoutDNS              = 5 * time.Second
-		timeoutKeepAlive        = 30 * time.Second
-		timeoutConn             = 10 * time.Second
+		timeoutKeepAlive        = 90 * time.Second
+		timeoutConn             = 5 * time.Second
 	)
 	defer func() {
 		if r := recover(); r != nil {
@@ -122,7 +122,7 @@ func main() {
 		addr, customDNS, connections, debugMode, authFile,
 	)
 
-	params := &server.Params{Addr: addr, Connections: connections, Sigint: sigint}
+	params := &server.Params{Addr: addr, Connections: connections, Sigint: sigint, Timeout: timeoutConn}
 	if err = s.ListenAndServe(params); err != nil {
 		logInfo.Printf("server listen error: %s", err)
 	}

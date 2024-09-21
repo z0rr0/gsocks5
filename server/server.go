@@ -26,6 +26,7 @@ type Params struct {
 	Connections uint32
 	Done        chan struct{} // only for testing
 	Sigint      chan os.Signal
+	Timeout     time.Duration
 	setReady    sync.Once
 	wg          sync.WaitGroup
 	listener    net.Listener
@@ -86,7 +87,7 @@ func (s *Server) listen(ctx context.Context, p *Params, done chan<- struct{}) (<
 	go func() {
 		for {
 			semaphore <- struct{}{} // limit connections, Server.handle will release it
-			if conn, e := s.accept(listener); e != nil {
+			if conn, e := s.accept(listener, p); e != nil {
 				if errors.Is(e, net.ErrClosed) {
 					break
 				}
@@ -106,13 +107,19 @@ func (s *Server) listen(ctx context.Context, p *Params, done chan<- struct{}) (<
 }
 
 // accept accepts a new connection.
-func (s *Server) accept(listener net.Listener) (net.Conn, error) {
+func (s *Server) accept(listener net.Listener, p *Params) (net.Conn, error) {
 	conn, err := listener.Accept()
 	if err != nil {
 		return nil, fmt.Errorf("failed to accept connection: %w", err)
 	}
 
-	s.logDebug.Printf("accepted connection from %s", conn.RemoteAddr().String())
+	if p.Timeout > 0 {
+		if err = conn.SetReadDeadline(time.Now().Add(p.Timeout)); err != nil {
+			return nil, fmt.Errorf("failed to set read deadline for connection: %w", err)
+		}
+	}
+
+	s.logDebug.Printf("accepted connection from %s with timeout %v", conn.RemoteAddr().String(), p.Timeout)
 	return conn, nil
 }
 
@@ -146,9 +153,9 @@ func (s *Server) handle(p *Params, conn net.Conn, semaphore <-chan struct{}) {
 	}()
 
 	if err = s.S.ServeConn(conn); err != nil {
-		var nErr net.Error
-		if errors.As(err, &nErr) && nErr.Timeout() {
-			s.logDebug.Printf("connection from %s is closed due to timeout: %v", client, err)
+		var netErr net.Error
+		if errors.As(err, &netErr) && netErr.Timeout() {
+			s.logDebug.Printf("connection from %s is closed due to timeout [%T]: %v", client, err, err)
 		} else {
 			s.logInfo.Printf("failed to serve connection from client %q: %v", client, err)
 		}
