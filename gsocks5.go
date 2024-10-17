@@ -40,17 +40,19 @@ var (
 
 func main() {
 	var (
-		authFile         string
-		customDNS        string
-		host             string
-		version          bool
-		debugMode        bool
-		connections      uint32 = 1024
-		port             uint16 = 1080
-		timeoutIdle             = 30 * time.Second
-		timeoutDNS              = 5 * time.Second
-		timeoutKeepAlive        = 90 * time.Second
-		timeoutConn             = 10 * time.Second
+		authFile    string
+		customDNS   string
+		host        string
+		version     bool
+		debugMode   bool
+		connections uint32 = 1024
+		port        uint16 = 1080
+
+		// timeouts
+		readWriteDeadline = 2 * time.Minute
+		timeoutDNS        = 5 * time.Second
+		timeoutKeepAlive  = 5 * time.Minute
+		timeoutConn       = 15 * time.Second
 	)
 	defer func() {
 		if r := recover(); r != nil {
@@ -61,7 +63,7 @@ func main() {
 	flag.StringVar(&customDNS, "dns", customDNS, "custom DNS server")
 	flag.BoolVar(&version, "version", false, "show version")
 	flag.StringVar(&host, "host", "", "server host")
-	flag.DurationVar(&timeoutIdle, "ti", timeoutIdle, "idle timeout")
+	flag.DurationVar(&readWriteDeadline, "rwd", readWriteDeadline, "read/write deadline timeout")
 	flag.DurationVar(&timeoutDNS, "td", timeoutDNS, "dns timeout")
 	flag.DurationVar(&timeoutKeepAlive, "tk", timeoutKeepAlive, "keepalive timeout")
 	flag.DurationVar(&timeoutConn, "tc", timeoutConn, "connection timeout")
@@ -98,7 +100,7 @@ func main() {
 		Logger:      logInfo,
 		Credentials: credentials,
 		Resolver:    resolver,
-		Dial:        conn.Dial(dialer, timeoutIdle, logInfo),
+		Dial:        conn.Dial(dialer, readWriteDeadline, logInfo),
 	}
 
 	sigint := make(chan os.Signal, 1)
@@ -114,8 +116,8 @@ func main() {
 	logInfo.Println(versionInfo)
 
 	logInfo.Printf(
-		"timeouts: idle=%v, dns=%v, keepalive=%v, connection=%v\n",
-		timeoutIdle, timeoutDNS, timeoutKeepAlive, timeoutConn,
+		"timeouts: read/write=%v, dns=%v, keepalive=%v, connection=%v\n",
+		readWriteDeadline, timeoutDNS, timeoutKeepAlive, timeoutConn,
 	)
 	logInfo.Printf(
 		"starting server on %q, dns=%q, connections=%d, debug=%v, auth=%q\n",
